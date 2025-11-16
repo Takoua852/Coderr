@@ -1,14 +1,28 @@
 from rest_framework import serializers
 from offers_app.models import Offer, OfferDetail
 
+class OfferDetailSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = OfferDetail
+        fields = [
+            'id',
+            'title',
+            'revisions',
+            'delivery_time_in_days',
+            'price',
+            'features',
+            'offer_type'
+        ]
 
 class OfferSerializer(serializers.ModelSerializer):
 
     user = serializers.PrimaryKeyRelatedField(read_only=True)
     user_details = serializers.SerializerMethodField()
     details = serializers.SerializerMethodField()
-    min_price = serializers.ReadOnlyField()
-    min_delivery_time = serializers.ReadOnlyField()
+
+    min_price = serializers.ReadOnlyField(source='annotated_min_price')
+    min_delivery_time = serializers.ReadOnlyField(source='annotated_min_delivery_time')
 
     class Meta:
         model = Offer
@@ -52,21 +66,6 @@ class OfferSerializer(serializers.ModelSerializer):
         ]
 
 
-class OfferDetailSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = OfferDetail
-        fields = [
-            'id',
-            'title',
-            'revisions',
-            'delivery_time_in_days',
-            'price',
-            'features',
-            'offer_type'
-        ]
-
-
 class OfferCreateSerializer(serializers.ModelSerializer):
     details = OfferDetailSerializer(many=True)
 
@@ -81,10 +80,11 @@ class OfferCreateSerializer(serializers.ModelSerializer):
 
         if len(details_data) != 3:
             raise serializers.ValidationError(
-                "Ein Offer muss genau 3 Details enthalten.")
+                "An offer must contain exactly 3 details.")
 
         for detail_data in details_data:
             OfferDetail.objects.create(offer=offer, **detail_data)
+            
         return offer
 
     def update(self, instance, validated_data):
