@@ -5,9 +5,25 @@ from django.utils import timezone
 
 
 class Order(models.Model):
+    """
+    Model representing an Order placed by a customer for a specific OfferDetail.
+
+    Attributes:
+        customer_user: ForeignKey to the customer who placed the order.
+        business_user: ForeignKey to the business fulfilling the order.
+        offer_detail: ForeignKey to the associated OfferDetail.
+        title: Title of the order, copied from OfferDetail.
+        revisions: Number of allowed revisions.
+        delivery_time_in_days: Estimated delivery time in days.
+        price: Price of the order.
+        features: List of features for this order (stored as JSON).
+        offer_type: Type of the offer detail (basic, standard, premium).
+        status: Current status of the order (in_progress, completed, cancelled).
+        created_at: Timestamp when the order was created.
+        updated_at: Timestamp when the order was last updated.
+    """
 
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
         ('in_progress', 'In Progress'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
@@ -41,7 +57,7 @@ class Order(models.Model):
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default='pending'
+        default='in_progress'
     )
 
 
@@ -52,4 +68,7 @@ class Order(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
+        """
+        String representation of the order.
+        """
         return f"Order {self.id} - {self.title} ({self.status})"

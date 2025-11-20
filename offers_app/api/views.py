@@ -4,45 +4,95 @@ from .permissions import IsBusinessProfileOrReadOnly, IsOwnerOrReadOnly
 from .serializers import OfferSerializer, OfferCreateSerializer, OfferDetailSerializer
 from offers_app.models import Offer, OfferDetail
 from django.db.models import Min
-
+from .pagination import DefaultPagination
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
+from .filters import OfferFilter
 
 class OfferListCreateView(generics.ListCreateAPIView):
-    serializer_class = OfferSerializer
-    ordering_fields = ['annotated_min_price', 'annotated_min_delivery_time']
+    """
+    API view for listing all offers or creating a new offer.
+
+    Features:
+    - Filtering by maximum delivery time (OfferFilter)
+    - Searching by title or description
+    - Ordering by updated_at, min_price, or min_delivery_time
+    - Pagination with DefaultPagination
+    - Different serializers and permissions for POST vs GET
+    """
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    ordering_fields = ['updated_at', 'min_price', 'min_delivery_time']
     search_fields = ['title', 'description']
+    filterset_class = OfferFilter
+    pagination_class = DefaultPagination
 
     def get_permissions(self):
+        """
+        Return different permissions depending on HTTP method.
+        - POST: Only business users can create offers
+        - GET: Any user can view the list
+        """
         if self.request.method == 'POST':
             return [IsBusinessProfileOrReadOnly()]
         return [AllowAny()]
 
     def get_serializer_class(self):
+        """
+        Use different serializers depending on HTTP method.
+        - POST: OfferCreateSerializer (handles nested details)
+        - GET: OfferSerializer (read-only representation)
+        """
         if self.request.method == 'POST':
             return OfferCreateSerializer
         return OfferSerializer
 
     def get_queryset(self):
-        return Offer.objects.annotate(
-            annotated_min_price=Min("details__price"),
-            annotated_min_delivery_time=Min("details__delivery_time_in_days")
+        """
+        Annotate each offer with min_price and min_delivery_time
+        from related OfferDetail objects.
+        """
+        queryset = Offer.objects.all().annotate(
+            min_price=Min('details__price'),
+            min_delivery_time=Min('details__delivery_time_in_days')
         )
+        return queryset
 
 
 class OfferDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    API view for retrieving, updating, or deleting a single offer.
+    
+    Features:
+    - Uses OfferCreateSerializer for updates (PUT/PATCH) to handle nested details
+    - Uses OfferSerializer for read-only representation
+    - Permissions:
+        - Only owners can update or delete
+        - Authenticated users can read
+    """
 
     queryset = Offer.objects.all()
+    serializer_class = OfferSerializer
 
     def get_serializer_class(self):
-        if self.request.method in ['PATCH', 'PUT']:
+        if self.request.method in ['PUT', 'PATCH']:
             return OfferCreateSerializer
         return OfferSerializer
 
     def get_permissions(self):
-        if self.request.method == 'GET':
-            return [IsAuthenticated()]
-        return [IsOwnerOrReadOnly()]
+        if self.request.method in ['PUT', 'PATCH', 'DELETE']:
+            return [IsOwnerOrReadOnly()]
+        return [IsAuthenticated()]
 
 
 class OfferDetailRetrieveView(generics.RetrieveAPIView):
+    """
+    API view for retrieving a single OfferDetail instance.
+
+    Permissions:
+    - Only authenticated users can access
+    """
     queryset = OfferDetail.objects.all()
     serializer_class = OfferDetailSerializer
+    permission_classes = [IsAuthenticated]
+
+

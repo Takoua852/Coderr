@@ -11,41 +11,70 @@ from rest_framework.response import Response
 
 
 class OrderListCreateView(generics.ListCreateAPIView):
+    """
+    API view for listing all orders or creating a new order.
 
-    pagination_class = None
+    Features:
+    - GET: Any authenticated user can view the list of orders
+    - POST: Only customers can create a new order
+    - Uses different serializers depending on the HTTP method
+    """
+
+    serializer_class = OrderSerializer
+    queryset = Order.objects.all()
 
     def get_permissions(self):
+        """
+        Return different permissions depending on HTTP method.
+        - POST: Only customer users can create orders
+        - GET: Any authenticated user can view orders
+        """
         if self.request.method == 'POST':
             return [IsCustomerUser()]
         return [IsAuthenticated()]
 
     def get_serializer_class(self):
+        """
+        Use different serializers depending on HTTP method.
+        - POST: OrderCreateSerializer (handles creation from OfferDetail)
+        - GET: OrderSerializer (read-only representation)
+        """
         if self.request.method == 'POST':
             return OrderCreateSerializer
         return OrderSerializer
 
-    def get_queryset(self):
-        profile = getattr(self.request.user, 'profile', None)
-        if not profile:
-            return Order.objects.none()
-        return Order.objects.filter(
-            customer_user__profile=profile
-        ) | Order.objects.filter(
-            business_user__profile=profile
-        )
-
 
 class OrderDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    API view for retrieving, updating, or deleting a single Order instance.
+
+    Features:
+    - GET: Any authenticated user can retrieve an order
+    - PATCH: Only business users can update the status of an order
+    - DELETE: Only admin users can delete an order
+    - Uses different serializers depending on HTTP method
+    """
 
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
 
     def get_serializer_class(self):
+        """
+        Use different serializers depending on HTTP method:
+        - PATCH: OrderStatusUpdateSerializer for updating order status
+        - GET or other methods: OrderSerializer (full read-only representation)
+        """
         if self.request.method == 'PATCH':
             return OrderStatusUpdateSerializer
         return OrderSerializer
 
     def get_permissions(self):
+        """
+        Return different permissions depending on HTTP method:
+        - PATCH: Only business owners can update
+        - DELETE: Only admin users can delete
+        - GET: Any authenticated user can read
+        """
         if self.request.method == 'PATCH':
             return [IsBusinessOwner()]
         elif self.request.method == 'DELETE':
@@ -54,9 +83,27 @@ class OrderDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class BusinessOrderCountView(APIView):
+    """
+    API view to get the count of orders with status 'in_progress'
+    for a specific business user.
+
+    Permissions:
+    - Only authenticated users can access.
+    """   
     permission_classes = [IsAuthenticated]
 
     def get(self, request, business_user_id, format=None):
+        """
+        Retrieve the count of in-progress orders for the given business user.
+
+        Args:
+            business_user_id: ID of the business user
+            request: HTTP request
+            format: Optional format parameter
+
+        Returns:
+            JSON response containing {"order_count": <number>}
+        """
         business_user = get_object_or_404(
             CustomUser, id=business_user_id, type="business")
         order_count = Order.objects.filter(
@@ -65,9 +112,29 @@ class BusinessOrderCountView(APIView):
 
 
 class CompletedOrderCountView(APIView):
+    """
+    API view to get the count of orders with status 'completed'
+    for a specific business user.
+
+    Permissions:
+    - Only authenticated users can access.
+    """
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, business_user_id, format=None):
+        """
+        Retrieve the count of completed orders for the given business user.
+
+        Args:
+            business_user_id: ID of the business user
+            request: HTTP request
+            format: Optional format parameter
+
+        Returns:
+            JSON response containing {"completed_order_count": <number>}
+        """
         business_user = get_object_or_404(
             CustomUser, id=business_user_id, type="business")
         completed_order_count = Order.objects.filter(
-            business_user=business_user, status='in_progress').count()
+            business_user=business_user, status='completed').count()
         return Response({"completed_order_count": completed_order_count}, status=status.HTTP_200_OK)

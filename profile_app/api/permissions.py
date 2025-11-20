@@ -1,15 +1,25 @@
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, SAFE_METHODS
 
-class IsOwnerOrReadOnly(BasePermission):
+
+class IsOwner(BasePermission):
     """
-    Custom permission to only allow owners of a profile
-    to edit it. Assumes the Profile model has a `user` attribute.
+    Custom object-level permission to allow access only to the owner of an object.
+
+    Usage:
+        - Can be applied to views where only the creator/owner of the object
+          should be able to update or delete it.
     """
     def has_object_permission(self, request, view, obj):
-        # Read permissions are allowed to any request,
-        # so we'll always allow GET, HEAD or OPTIONS requests.
-        if request.method in ('GET', 'HEAD', 'OPTIONS'):
-            return True
+        """
+        Check if the requesting user is the owner of the object.
 
-        # Write permissions are only allowed to the owner of the profile.
-        return obj.user == request.user
+        Args:
+            request: HTTP request object
+            view: View instance
+            obj: Object being accessed
+
+        Returns:
+            True if the request user is the owner, False otherwise
+        """
+        return obj.user == request.user 
+

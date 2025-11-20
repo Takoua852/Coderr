@@ -1,3 +1,13 @@
+"""
+URLs for the Orders app.
+
+Includes routes for:
+- Listing and creating orders
+- Retrieving, updating, or deleting a single order
+- Counting all orders for a specific business user
+- Counting completed orders for a specific business user
+"""
+
 from django.urls import path
 from .views import OrderListCreateView, OrderDetailView, BusinessOrderCountView, CompletedOrderCountView
 

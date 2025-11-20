@@ -6,9 +6,27 @@ from rest_framework.authtoken.models import Token
 from rest_framework import status
 
 class RegistrationView(APIView):
+
+    """
+    API view for user registration.
+
+    Allows any user (even unauthenticated) to register by providing
+    username, email, password, and type. Returns an authentication
+    token upon successful registration.
+    """
     permission_classes = [AllowAny]
 
     def post(self, request):
+
+        """
+        Handle POST request for user registration.
+
+        Steps:
+        1. Validate incoming data with RegistrationSerializer.
+        2. If valid, create the user and generate an authentication token.
+        3. Return the token and user info in the response.
+        4. If invalid, return serializer errors.
+        """
         serializer = RegistrationSerializer(data=request.data)
 
         if serializer.is_valid():
@@ -26,9 +44,28 @@ class RegistrationView(APIView):
     
 
 class LoginView(APIView):
+
+    """
+    API view for user login.
+
+    Allows any user (even unauthenticated) to log in by providing
+    a valid username and password. Returns an authentication token
+    upon successful login.
+    """
     permission_classes = [AllowAny]
 
     def post(self, request):
+
+        """
+        Handle POST request for user login.
+
+        Steps:
+        1. Validate incoming data with LoginSerializer.
+        2. If valid, retrieve the user and generate an authentication token.
+        3. Return the token and user info in the response.
+        4. If invalid, return serializer errors.
+        """
+        
         serializer  = LoginSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.validated_data['user']

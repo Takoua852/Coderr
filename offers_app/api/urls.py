@@ -1,3 +1,10 @@
+"""
+URLs for the Offers app.
+
+Includes routes for listing, creating, and retrieving offers and offer details.
+"""
+
+
 from django.urls import path
 from .views import OfferListCreateView,OfferDetailView, OfferDetailRetrieveView
 

@@ -9,9 +9,24 @@ from rest_framework import status
 
 
 class BaseInfoView(APIView):
+    """
+    API endpoint to retrieve general/base information about the platform.
+
+    Returns:
+        - review_count: Total number of reviews.
+        - average_rating: Average rating of all reviews (rounded to 1 decimal).
+        - business_profile_count: Total number of business users.
+        - offer_count: Total number of offers.
+
+    Permissions:
+        - AllowAny: Accessible by any user (authenticated or not).
+    """
     permission_classes = [AllowAny]
 
     def get(self, request, format=None):
+        """
+        Handles GET requests to fetch the base information.
+        """
         review_count = Review.objects.count()
         average_rating = Review.objects.aggregate(avg=Avg('rating'))[
             'avg'] or 0
