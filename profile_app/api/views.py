@@ -61,14 +61,3 @@ class ProfilesListAPIView(generics.ListAPIView):
             return ProfileCustomerSerializer
         return ProfileSerializer
     
-
-
-
-        # def get_serializer_class(self):
-    #     user_type = getattr(self.request.user, 'type', None)
-    #     if user_type == 'business':
-    #         return ProfileBusinessSerializer
-    #     elif user_type == 'customer':
-    #         return ProfileCustomerSerializer
-    #     return ProfileSerializer
-    

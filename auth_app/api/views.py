@@ -4,6 +4,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from rest_framework import status
+from profile_app.models import Profile
 
 class RegistrationView(APIView):
 
@@ -31,6 +32,7 @@ class RegistrationView(APIView):
 
         if serializer.is_valid():
             saved_account = serializer.save()
+            Profile.objects.get_or_create(user=saved_account)
             token, _ = Token.objects.get_or_create(user=saved_account)
             data = {
                 "token": token.key,

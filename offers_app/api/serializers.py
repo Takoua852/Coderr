@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from offers_app.models import Offer, OfferDetail
+from django.db.models import Min
 
 
 class OfferDetailSerializer(serializers.ModelSerializer):
@@ -8,19 +9,27 @@ class OfferDetailSerializer(serializers.ModelSerializer):
 
     Converts OfferDetail instances to JSON and vice versa for API responses.
     """
+    class Meta:
+        model = OfferDetail
+        fields = ['id', 'title', 'revisions', 'delivery_time_in_days',
+                  'price', 'features', 'offer_type'
+                  ]
+
+class OfferDetailUrlSerializer(serializers.ModelSerializer):
+    """
+    Serializer for OfferDetail that includes the API URL.
+
+    Converts OfferDetail instances to JSON with an additional URL field.
+    """
+    url = serializers.SerializerMethodField()
 
     class Meta:
         model = OfferDetail
-        fields = [
-            'id',
-            'title',
-            'revisions',
-            'delivery_time_in_days',
-            'price',
-            'features',
-            'offer_type'
-        ]
+        fields = ['id', 'url']
 
+    def get_url(self, obj):
+        request = self.context.get('request')
+        return request.build_absolute_uri(f"/api/offerdetails/{obj.id}/") if request else f"/offerdetails/{obj.id}/"
 
 class OfferSerializer(serializers.ModelSerializer):
     """
@@ -31,25 +40,15 @@ class OfferSerializer(serializers.ModelSerializer):
     """
     user = serializers.PrimaryKeyRelatedField(read_only=True)
     user_details = serializers.SerializerMethodField()
-    details = serializers.SerializerMethodField()
-    min_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-    min_delivery_time = serializers.IntegerField(read_only=True)
-    
+    details = OfferDetailUrlSerializer(many=True)
+    min_price = serializers.SerializerMethodField()
+    min_delivery_time = serializers.SerializerMethodField()
 
     class Meta:
         model = Offer
         fields = [
-            'id',
-            'user',
-            'title',
-            'image',
-            'description',
-            'created_at',
-            'updated_at',
-            'details',
-            'min_price',
-            'min_delivery_time',
-            'user_details'
+            'id', 'user', 'title', 'image', 'description', 'created_at',
+            'updated_at', 'details', 'min_price', 'min_delivery_time', 'user_details'
         ]
 
     def __init__(self, *args, **kwargs):
@@ -81,25 +80,19 @@ class OfferSerializer(serializers.ModelSerializer):
             'last_name': profile.last_name if profile else user.last_name or '',
             'username': user.username or ''
         }
-
-    def get_details(self, obj):
+    
+    def get_min_price(self, obj):
         """
-        Return a list of related offer details with URLs.
-
-        Args:
-            obj: Offer instance
-
-        Returns:
-            List of dictionaries containing detail id and API URL.
+        Return the minimum price from related OfferDetail objects.
         """
-        request = self.context.get('request')
-        return [
-            {
-                "id": detail.id,
-                "url": request.build_absolute_uri(f"/api/offerdetails/{detail.id}/") if request else f"/offerdetails/{detail.id}/"
-            }
-            for detail in obj.details.all()
-        ]
+        return obj.details.aggregate(min_price=Min('price'))['min_price'] or 0
+
+    def get_min_delivery_time(self, obj):
+        """
+        Return the minimum delivery time from related OfferDetail objects.
+        """
+        return obj.details.aggregate(min_delivery_time=Min('delivery_time_in_days'))['min_delivery_time'] or 0
+
 
 class OfferCreateSerializer(serializers.ModelSerializer):
     """
@@ -140,12 +133,6 @@ class OfferCreateSerializer(serializers.ModelSerializer):
             OfferDetail.objects.create(offer=offer, **detail_data)
 
         return offer
-
-    def to_representation(self, instance):
-        """
-        Use the standard OfferSerializer for the response representation.
-        """
-        return OfferSerializer(instance, context=self.context).data
 
     def update(self, instance, validated_data):
         """

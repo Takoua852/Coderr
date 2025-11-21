@@ -79,6 +79,7 @@ class LoginSerializer(serializers.Serializer):
         2. Verify that the password matches.
         3. Attach the user instance to the validated data for later use.
         """
+        
         username = data.get('username')
         password = data.get('password')
 

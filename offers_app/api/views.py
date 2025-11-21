@@ -9,6 +9,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from .filters import OfferFilter
 
+
 class OfferListCreateView(generics.ListCreateAPIView):
     """
     API view for listing all offers or creating a new offer.
@@ -20,7 +21,8 @@ class OfferListCreateView(generics.ListCreateAPIView):
     - Pagination with DefaultPagination
     - Different serializers and permissions for POST vs GET
     """
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend,
+                       filters.SearchFilter, filters.OrderingFilter]
     ordering_fields = ['updated_at', 'min_price', 'min_delivery_time']
     search_fields = ['title', 'description']
     filterset_class = OfferFilter
@@ -51,17 +53,30 @@ class OfferListCreateView(generics.ListCreateAPIView):
         Annotate each offer with min_price and min_delivery_time
         from related OfferDetail objects.
         """
+
         queryset = Offer.objects.all().annotate(
             min_price=Min('details__price'),
             min_delivery_time=Min('details__delivery_time_in_days')
-        )
+        ).order_by('-created_at')
+
+        creator_id = self.request.query_params.get('creator_id')
+        min_price = self.request.query_params.get('min_price')
+        max_delivery_time = self.request.query_params.get('max_delivery_time')
+
+        if creator_id:
+            queryset = queryset.filter(user__id=creator_id)
+        if min_price:
+            queryset = queryset.filter(min_price__gte=min_price)
+        if max_delivery_time:
+            queryset = queryset.filter(
+                min_delivery_time__lte=max_delivery_time)
         return queryset
 
 
 class OfferDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     API view for retrieving, updating, or deleting a single offer.
-    
+
     Features:
     - Uses OfferCreateSerializer for updates (PUT/PATCH) to handle nested details
     - Uses OfferSerializer for read-only representation
@@ -69,8 +84,6 @@ class OfferDetailView(generics.RetrieveUpdateDestroyAPIView):
         - Only owners can update or delete
         - Authenticated users can read
     """
-
-    queryset = Offer.objects.all()
     serializer_class = OfferSerializer
 
     def get_serializer_class(self):
@@ -83,6 +96,12 @@ class OfferDetailView(generics.RetrieveUpdateDestroyAPIView):
             return [IsOwnerOrReadOnly()]
         return [IsAuthenticated()]
 
+    def get_queryset(self):
+        return Offer.objects.all().annotate(
+            min_price=Min('details__price'),
+            min_delivery_time=Min('details__delivery_time_in_days')
+        )
+
 
 class OfferDetailRetrieveView(generics.RetrieveAPIView):
     """
@@ -94,5 +113,3 @@ class OfferDetailRetrieveView(generics.RetrieveAPIView):
     queryset = OfferDetail.objects.all()
     serializer_class = OfferDetailSerializer
     permission_classes = [IsAuthenticated]
-
-
