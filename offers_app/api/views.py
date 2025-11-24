@@ -1,7 +1,7 @@
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .permissions import IsBusinessProfileOrReadOnly, IsOwnerOrReadOnly
-from .serializers import OfferSerializer, OfferCreateSerializer, OfferDetailSerializer,OfferUpdateSerializer
+from .serializers import OfferSerializer, OfferCreateSerializer, OfferDetailSerializer, OfferUpdateSerializer
 from offers_app.models import Offer, OfferDetail
 from django.db.models import Min
 from .pagination import DefaultPagination
@@ -73,8 +73,9 @@ class OfferListCreateView(generics.ListCreateAPIView):
         ).order_by('-created_at')
 
         creator_id = validate_int_param(self.request, "creator_id")
-        min_price =  validate_int_param(self.request, "min_price")
-        max_delivery_time = validate_int_param(self.request, "max_delivery_time")
+        min_price = validate_int_param(self.request, "min_price")
+        max_delivery_time = validate_int_param(
+            self.request, "max_delivery_time")
 
         if creator_id:
             queryset = queryset.filter(user__id=creator_id)
@@ -98,8 +99,10 @@ class OfferDetailView(generics.RetrieveUpdateDestroyAPIView):
         - Authenticated users can read
     """
     serializer_class = OfferSerializer
-    queryset = Offer.objects.all()
-
+    queryset = Offer.objects.all().annotate(
+        min_price=Min('details__price'),
+        min_delivery_time=Min('details__delivery_time_in_days')
+    )
 
     def get_serializer_class(self):
         if self.request.method in ['PUT', 'PATCH']:
@@ -108,22 +111,9 @@ class OfferDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [IsOwnerOrReadOnly()]
+            return [IsAuthenticated(),IsOwnerOrReadOnly()]
         return [IsAuthenticated()]
-
-    def get_queryset(self):
-        return Offer.objects.all().annotate(
-            min_price=Min('details__price'),
-            min_delivery_time=Min('details__delivery_time_in_days')
-        )
-    def get_object(self):
-        try:
-            obj = Offer.objects.get(pk=self.kwargs['pk'])
-        except Offer.DoesNotExist:
-            raise NotFound("Offer not found.")
-        self.check_object_permissions(self.request, obj)
-        return obj
-
+    
 class OfferDetailRetrieveView(generics.RetrieveAPIView):
     """
     API view for retrieving a single OfferDetail instance.

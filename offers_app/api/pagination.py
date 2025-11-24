@@ -26,3 +26,6 @@ class DefaultPagination(PageNumberPagination):
                         "page_size must be a positive integer.")
             except ValueError:
                 raise ValidationError("page_size must be an integer.")
+            return min(page_size, self.max_page_size)
+        
+        return self.page_size

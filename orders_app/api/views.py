@@ -54,9 +54,9 @@ class OrderDetailView(generics.RetrieveUpdateDestroyAPIView):
     - DELETE: Only admin users can delete an order
     - Uses different serializers depending on HTTP method
     """
-
+    
     queryset = Order.objects.all()
-    serializer_class = OrderSerializer
+    serializer_class = OrderSerializer    
 
     def get_serializer_class(self):
         """
@@ -75,13 +75,12 @@ class OrderDetailView(generics.RetrieveUpdateDestroyAPIView):
         - DELETE: Only admin users can delete
         - GET: Any authenticated user can read
         """
-        if self.request.method == 'PATCH':
-            return [IsBusinessOwner()]
-        elif self.request.method == 'DELETE':
-            return [IsAdminUser()]
+        if self.request.method in ['PATCH', 'PUT']:
+            return [IsAuthenticated(),IsBusinessOwner()]
+        if self.request.method == 'DELETE':
+            return [IsAuthenticated(), IsAdminUser()]
         return [IsAuthenticated()]
-
-
+    
 class BusinessOrderCountView(APIView):
     """
     API view to get the count of orders with status 'in_progress'

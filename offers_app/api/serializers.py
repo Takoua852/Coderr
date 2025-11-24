@@ -192,11 +192,9 @@ class OfferUpdateSerializer(serializers.ModelSerializer):
                 })
 
                 try:
-                    detail_instance = instance.details.get(
-                        offer_type=offer_type)
+                    detail_instance = instance.details.get(offer_type=offer_type)
                 except OfferDetail.DoesNotExist:
-                    detail_instance = OfferDetail.objects.create(
-                        offer=instance, **detail_data)
+                    detail_instance = OfferDetail.objects.create(offer=instance, **detail_data)
                     continue
 
             for field, value in detail_data.items():
