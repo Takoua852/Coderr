@@ -15,6 +15,7 @@ class OfferDetailSerializer(serializers.ModelSerializer):
                   'price', 'features', 'offer_type'
                   ]
 
+
 class OfferDetailUrlSerializer(serializers.ModelSerializer):
     """
     Serializer for OfferDetail that includes the API URL.
@@ -30,6 +31,7 @@ class OfferDetailUrlSerializer(serializers.ModelSerializer):
     def get_url(self, obj):
         request = self.context.get('request')
         return request.build_absolute_uri(f"/api/offerdetails/{obj.id}/") if request else f"/offerdetails/{obj.id}/"
+
 
 class OfferSerializer(serializers.ModelSerializer):
     """
@@ -80,7 +82,7 @@ class OfferSerializer(serializers.ModelSerializer):
             'last_name': profile.last_name if profile else user.last_name or '',
             'username': user.username or ''
         }
-    
+
     def get_min_price(self, obj):
         """
         Return the minimum price from related OfferDetail objects.
@@ -107,6 +109,22 @@ class OfferCreateSerializer(serializers.ModelSerializer):
         model = Offer
         fields = ['id', 'title', 'image', 'description', 'details']
 
+    def validate_details(self, value):
+        request = self.context.get('request')
+        if request and request.method == 'POST':
+            if len(value) != 3:
+                raise serializers.ValidationError(
+                    "An offer must contain exactly 3 details."
+                )
+            
+        offer_types = [d.get('offer_type') for d in value]
+        if sorted(offer_types) != sorted([choice[0] for choice in OfferDetail.OFFER_TYPE_CHOICES]):
+            raise serializers.ValidationError(
+                "Each offer must have exactly one Basic, one Standard, and one Premium detail."
+            )
+
+        return value
+
     def create(self, validated_data):
         """
         Create a new Offer instance along with its nested details.
@@ -120,12 +138,8 @@ class OfferCreateSerializer(serializers.ModelSerializer):
         Raises:
             serializers.ValidationError: If the offer does not contain exactly 3 details
         """
-        details_data = validated_data.pop('details')
+        details_data = validated_data.pop('details',[])
         request = self.context.get('request')
-
-        if len(details_data) != 3:
-            raise serializers.ValidationError(
-                "An offer must contain exactly 3 details.")
 
         offer = Offer.objects.create(user=request.user, **validated_data)
 
@@ -134,6 +148,20 @@ class OfferCreateSerializer(serializers.ModelSerializer):
 
         return offer
 
+
+class OfferUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for updating Offer instances without nested details.
+
+    Allows updating only the main Offer fields.
+    
+    """
+    details = OfferDetailSerializer(many=True)
+
+    class Meta:
+        model = Offer
+        fields = ['id', 'title', 'image', 'description', 'details']
+    
     def update(self, instance, validated_data):
         """
         Update an existing Offer instance and its nested OfferDetails.
@@ -159,7 +187,10 @@ class OfferCreateSerializer(serializers.ModelSerializer):
             for detail_data in details_data:
                 offer_type = detail_data.get('offer_type')
                 if not offer_type:
-                    continue
+                    raise serializers.ValidationError({
+                    "details": "offer_type is required for each detail."
+                })
+
                 try:
                     detail_instance = instance.details.get(
                         offer_type=offer_type)
@@ -168,8 +199,12 @@ class OfferCreateSerializer(serializers.ModelSerializer):
                         offer=instance, **detail_data)
                     continue
 
-                for field, value in detail_data.items():
+            for field, value in detail_data.items():
+                if field != 'offer_type':
                     setattr(detail_instance, field, value)
-                detail_instance.save()
+            detail_instance.save() 
 
         return instance
+    
+
+    

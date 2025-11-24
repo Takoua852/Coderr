@@ -1,13 +1,26 @@
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .permissions import IsBusinessProfileOrReadOnly, IsOwnerOrReadOnly
-from .serializers import OfferSerializer, OfferCreateSerializer, OfferDetailSerializer
+from .serializers import OfferSerializer, OfferCreateSerializer, OfferDetailSerializer,OfferUpdateSerializer
 from offers_app.models import Offer, OfferDetail
 from django.db.models import Min
 from .pagination import DefaultPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from .filters import OfferFilter
+from rest_framework.exceptions import ValidationError, NotFound
+
+
+def validate_int_param(request, param_name):
+    value = request.query_params.get(param_name)
+    if value is None:
+        return None
+
+    try:
+        return int(value)
+    except ValueError:
+        raise ValidationError(
+            {param_name: f"{param_name} must be an integer."})
 
 
 class OfferListCreateView(generics.ListCreateAPIView):
@@ -59,9 +72,9 @@ class OfferListCreateView(generics.ListCreateAPIView):
             min_delivery_time=Min('details__delivery_time_in_days')
         ).order_by('-created_at')
 
-        creator_id = self.request.query_params.get('creator_id')
-        min_price = self.request.query_params.get('min_price')
-        max_delivery_time = self.request.query_params.get('max_delivery_time')
+        creator_id = validate_int_param(self.request, "creator_id")
+        min_price =  validate_int_param(self.request, "min_price")
+        max_delivery_time = validate_int_param(self.request, "max_delivery_time")
 
         if creator_id:
             queryset = queryset.filter(user__id=creator_id)
@@ -85,10 +98,12 @@ class OfferDetailView(generics.RetrieveUpdateDestroyAPIView):
         - Authenticated users can read
     """
     serializer_class = OfferSerializer
+    queryset = Offer.objects.all()
+
 
     def get_serializer_class(self):
         if self.request.method in ['PUT', 'PATCH']:
-            return OfferCreateSerializer
+            return OfferUpdateSerializer
         return OfferSerializer
 
     def get_permissions(self):
@@ -101,7 +116,13 @@ class OfferDetailView(generics.RetrieveUpdateDestroyAPIView):
             min_price=Min('details__price'),
             min_delivery_time=Min('details__delivery_time_in_days')
         )
-
+    def get_object(self):
+        try:
+            obj = Offer.objects.get(pk=self.kwargs['pk'])
+        except Offer.DoesNotExist:
+            raise NotFound("Offer not found.")
+        self.check_object_permissions(self.request, obj)
+        return obj
 
 class OfferDetailRetrieveView(generics.RetrieveAPIView):
     """

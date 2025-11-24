@@ -43,7 +43,7 @@ class ProfileDetailAPIView(generics.RetrieveUpdateAPIView):
         return [IsAuthenticated()]
 
 class ProfilesListAPIView(generics.ListAPIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     serializer_class = ProfileSerializer
 
     def get_queryset(self):
