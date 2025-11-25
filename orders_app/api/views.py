@@ -8,6 +8,7 @@ from auth_app.models import CustomUser
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.response import Response
+from rest_framework.exceptions import  PermissionDenied
 
 
 class OrderListCreateView(generics.ListCreateAPIView):
@@ -56,7 +57,6 @@ class OrderDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     
     queryset = Order.objects.all()
-    serializer_class = OrderSerializer    
 
     def get_serializer_class(self):
         """
@@ -67,7 +67,7 @@ class OrderDetailView(generics.RetrieveUpdateDestroyAPIView):
         if self.request.method == 'PATCH':
             return OrderStatusUpdateSerializer
         return OrderSerializer
-
+    
     def get_permissions(self):
         """
         Return different permissions depending on HTTP method:

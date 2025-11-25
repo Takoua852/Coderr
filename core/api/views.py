@@ -32,6 +32,7 @@ class BaseInfoView(APIView):
             'avg'] or 0
         business_profile_count = CustomUser.objects.filter(type = 'business').count()
         offer_count = Offer.objects.count()
+        print('offer_count', offer_count)
 
         return Response({
             "review_count": review_count,

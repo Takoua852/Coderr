@@ -21,30 +21,28 @@ class IsCustomerUser(BasePermission):
 
 class IsBusinessOwner(BasePermission):
     """
-    Custom permission to allow business users to perform write operations.
-
-    Read-only requests (GET, HEAD, OPTIONS) are allowed for any user.
+    Custom permission to allow access only to authenticated users
     """
 
     def has_permission(self, request, view):
-        """
-        Allow safe methods for any user, otherwise check if user is a business.
+        return request.user.is_authenticated
 
-        Returns:
-            True if the user is allowed to perform the action, else False.
-        """
-        if request.method in SAFE_METHODS:
-            return request.user.is_authenticated
+    """
+    Custom permission to allow only business users to perform
+    write operations (PATCH, PUT).
+    """
 
-        return (
-            request.user.is_authenticated and 
-            getattr(request.user, "type", None) == "business"
-        )
+    def has_object_permission(self, request, view, obj):
+        if request.method in ('PATCH', 'PUT'):
+            return getattr(request.user, "type", None) == "business"
+        return True
+
 
 class IsAdminUser(BasePermission):
     """
     Custom permission to allow access only to admin users (staff).
     """
+
     def has_permission(self, request, view):
         """
         Check if the user is authenticated and is staff.
